@@ -47,9 +47,20 @@ class VortexApp extends StatelessWidget {
   }
 }
 
+class Todo {
+  final String title;
+  final String description;
+
+  Todo(this.title, this.description);
+}
+
 class CommentsPage extends StatefulWidget {
   @override
   createState() => new CommentsPageState();
+
+  final Todo todo;
+
+  CommentsPage({Key key, @required this.todo}) : super(key: key);
 }
 
 class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClientMixin<CommentsPage>{
@@ -61,8 +72,16 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   List<int>flagCountList = [];
   List<int>likeCountList = [];
   List<int>dislikeCountList = [];
+  final commentController = TextEditingController();
 
-  void _addComment(String val){
+  void dispose() {
+    // Clean up the controller when the widget is disposed.
+    commentController.dispose();
+    super.dispose();
+  }
+
+
+    void _addComment(String val){
     if (val.length >0) {
       setState(() => _comments.insert(0, val));
       setState(() => isFlaggedList.insert(0, false));
@@ -125,7 +144,6 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   }
 
 
-
   Widget _buildCommentItem(String comment, int index) {
     bool isFlagged = isFlaggedList[index];
     bool isLiked = isLikedList[index];
@@ -178,11 +196,19 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
         appBar: new AppBar(
             title: Text("Comments"),
             backgroundColor: new Color(0xFF131515)),
-        body: Column(children: <Widget>[Expanded(child: _buildCommentList()),
+        body: Column(children: <Widget>[
+          new ListTile(
+              title: new Text(widget.todo.title),
+              subtitle: new Text(widget.todo.description),
+              contentPadding: const EdgeInsets.all(20.0)
+          ),
+          Expanded(child: _buildCommentList()),
 
           new TextField(
+            controller: commentController,
             onSubmitted: (String submittedStr) {
               _addComment(submittedStr);
+              commentController.clear();
             },
             decoration: InputDecoration(
                 contentPadding: const EdgeInsets.all(20.0),
@@ -211,6 +237,17 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   List<int>likeCountList = [];
   List<int>dislikeCountList = [];
   Future<Post> post;
+//  List<String> _authors = [];
+  List<String> _subtitles = [];
+  final titleController = TextEditingController();
+  final subtitleController = TextEditingController();
+
+  void dispose() {
+    // Clean up the controller when the widget is disposed.
+    titleController.dispose();
+    subtitleController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -218,15 +255,29 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     post = fetchPost();
   }
 
-  void _addPostItem(String task) {
+//  void _addPostItem(String task) {
+//    if(task.length > 0) {
+//      setState(() => _postItems.insert(0, task));
+//      setState(() => isFlaggedList.insert(0, false));
+//      setState(() => isLikedList.insert(0, false));
+//      setState(() => isDislikedList.insert(0, false));
+//      setState(() => flagCountList.insert(0, 0));
+//      setState(() => likeCountList.insert(0, 0));
+//      setState(() => dislikeCountList.insert(0, 0));
+//    }
+//  }
+//
+  void _addPostItem(String task, String subtitle) {
     if(task.length > 0) {
-      setState(() => _postItems.insert(0, task));
-      setState(() => isFlaggedList.insert(0, false));
-      setState(() => isLikedList.insert(0, false));
-      setState(() => isDislikedList.insert(0, false));
-      setState(() => flagCountList.insert(0, 0));
-      setState(() => likeCountList.insert(0, 0));
-      setState(() => dislikeCountList.insert(0, 0));
+      _postItems.insert(0, task);
+      isFlaggedList.insert(0, false);
+      isLikedList.insert(0, false);
+      isDislikedList.insert(0, false);
+      flagCountList.insert(0, 0);
+      likeCountList.insert(0, 0);
+      dislikeCountList.insert(0, 0);
+//      _authors.insert(0, author);
+      _subtitles.insert(0,subtitle);
     }
   }
 
@@ -234,9 +285,9 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     setState(() => _postItems.removeAt(index));
   }
 
-  _commentPressed(){
+  _commentPressed(String title, String subtitle){
     setState(() {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsPage()));
+      Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsPage(todo: Todo(title, subtitle))));
     });
   }
 
@@ -272,7 +323,8 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
         future: post,
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            return Text(snapshot.data.title);
+            if(_postItems.indexOf(snapshot.data.title) == -1){
+            _addPostItem(snapshot.data.title, snapshot.data.body);}
           } else if (snapshot.hasError) {
             return Text("${snapshot.error}");
           }
@@ -282,7 +334,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
               // itemBuilder will be automatically be called as many times as it takes for the
               // list to fill up its available space
               if (index < _postItems.length) {
-                return _buildPostItem(_postItems[index], index);
+                return _buildPostItem(_postItems[index], _subtitles[index], index);
               }
               return null;
             },
@@ -292,7 +344,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     }
 
   // Build a single  item
-  Widget _buildPostItem(String postText, int index) {
+  Widget _buildPostItem(String postText, String subtitle, int index) {
     bool isFlagged = isFlaggedList[index];
     bool isLiked = isLikedList[index];
     bool isDisliked = isDislikedList[index];
@@ -301,7 +353,9 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     int dislikeCount = dislikeCountList[index];
 
     return new ListTile(
+        leading: new Image.asset("assets/images/Group3.png"),
         title: new Text(postText),
+//        subtitle: new Text(author),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
         trailing: Row(mainAxisSize: MainAxisSize.min,
           children: <Widget> [
@@ -335,7 +389,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
 
 
 
-        onTap: () => _commentPressed()
+        onTap: () => _commentPressed(postText, subtitle)
     );
   }
 
@@ -406,16 +460,38 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
                     title: new Text('Add New Post'),
                     backgroundColor: Color(0xFF131515),
                   ),
-                  body: new TextField(
-                    autofocus: true,
-                    onSubmitted: (val) {
-                      _addPostItem(val);
-                      Navigator.pop(context); // Close the add post screen
-                    },
-                    decoration: new InputDecoration(
-                        hintText: 'Write a new post!',
-                        contentPadding: const EdgeInsets.all(16.0)
-                    ),
+                  body: new Column(
+                    children: <Widget>[
+                      new TextField(
+                        autofocus: true,
+//                        onSubmitted: (val) {
+//                          _addPostItem(val);
+//                        },
+                        controller: titleController,
+                        decoration: new InputDecoration(
+                            hintText: 'Title',
+                            contentPadding: const EdgeInsets.all(16.0)
+                        ),
+                      ),
+                      new TextField(
+                        autofocus: true,
+//                        onSubmitted: (dval) {
+//                          _addPostItem(dval);
+//                        },
+                        controller: subtitleController,
+                        decoration: new InputDecoration(
+                            hintText: 'Description',
+                            contentPadding: const EdgeInsets.all(16.0)
+                        ),
+                      ),
+                      FlatButton(
+                        child: Text('Submit'),
+                        onPressed: () {
+                          _addPostItem(titleController.text, subtitleController.text);
+                          Navigator.pop(context);
+                        }
+                      ),
+                    ]
                   )
               );
             }
@@ -690,9 +766,10 @@ class Post {
   final int downvote;
   final int flag;
   final DateTime deletedat;
+  final String username;
 
   Post({this.pid, this.chid, this.uid, this.body, this.deletedat, this.downvote,
-        this.flag, this.title, this.upvote});
+        this.flag, this.title, this.upvote, this.username});
 
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
@@ -704,7 +781,8 @@ class Post {
       upvote: json['upVote'],
       downvote: json['downVote'],
       flag: json['flag'],
-      deletedat: json['deletedAt']
+      deletedat: json['deletedAt'],
+      username: json['username']
     );
   }
 }
@@ -713,23 +791,23 @@ class User {
   final int uid;
   final String phonenumber;
   final String password;
-  final String netid;
+  final String username;
 
-  User({this.uid, this.phonenumber, this.password, this.netid});
+  User({this.uid, this.phonenumber, this.password, this.username});
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
         uid: json['uid'],
         phonenumber: json['phonenumber'],
         password: json['password'],
-        netid: json['netid']
+        username: json['username']
     );
   }
 }
 
 Future<Post> fetchPost() async {
   final response =
-  await http.get('https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev');
+  await http.get('https://jsonplaceholder.typicode.com/posts/1');
 
   if (response.statusCode == 200) {
     // If server returns an OK response, parse the JSON.

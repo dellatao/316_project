@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'comments.dart';
 import 'dart:convert';
@@ -36,7 +37,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   @override
   void initState() {
     super.initState();
-    post = fetchPost();
+    post = fetchPosts(http.Client());
   }
 
 
@@ -93,24 +94,14 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   // Build the whole list of post items
   Widget _buildPostList() {
     return FutureBuilder<List<Post>>(
-        future: fetchPost(),
+        future: fetchPosts(http.Client()),
         builder: (context, snapshot) {
-
           if (snapshot.hasData) {
-            List<Post> posts = snapshot.data;
-            return new Column(
-                children: posts.map((post) =>
-                new Column(
-                  children: <Widget>[
-                    new Text(post.title),
-                    new Text(post.body),
-                  ],
-                )).toList()
-            );
+            _addExistingItems(snapshot.data);
+          } else if (snapshot.hasError) {
+            return Text("${snapshot.error}");
           }
-          else if(snapshot.hasError) {
-            return snapshot.error;
-          }
+
           return new ListView.builder(
             itemBuilder: (context, index) {
               // itemBuilder will be automatically be called as many times as it takes for the
@@ -123,6 +114,20 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
           );
         }
     );
+  }
+
+  void _addExistingItems(final List<Post> posts) {
+    for (var p in posts) {
+      _postItems.add(p.title);
+      isFlaggedList.add(false);
+      isLikedList.add(false);
+      isDislikedList.add(false);
+      flagCountList.add(p.flag);
+      likeCountList.add(p.upvote);
+      dislikeCountList.add(p.downvote);
+//      _authors.insert(0, author);
+      _subtitles.add(p.body);
+    }
   }
 
   // Build a single  item
@@ -277,12 +282,12 @@ class Post {
     this.flag, this.title, this.upvote, this.username});
 
   factory Post.fromJson(Map<String, dynamic> json) {
-    return new Post(
+    return Post(
         uid: json['uid'],
         pid: json['pid'],
         chid: json['chid'],
-        title: json['title'],
-        body: json['body'],
+        title: json['title'] as String,
+        body: json['body'] as String,
         upvote: json['upVote'],
         downvote: json['downVote'],
         flag: json['flag'],
@@ -292,11 +297,18 @@ class Post {
   }
 }
 
-Future<List<Post>> fetchPost() async {
-  http.Response response = await http.get(
-      'https://jsonplaceholder.typicode.com/posts');
-  var responseJson = json.decode(response.body);
-  return (responseJson as List)
-      .map((p) => Post.fromJson(p))
-      .toList();
+
+List<Post> parsePosts(String responseBody) {
+  final parsed = json.decode(responseBody).cast<Map<String, dynamic>>();
+
+  return parsed.map<Post>((json) => Post.fromJson(json)).toList();
+}
+
+
+Future<List<Post>> fetchPosts(http.Client client) async {
+  final response =
+  await client.get('https://jsonplaceholder.typicode.com/posts');
+
+  // Use the compute function to run parsePhotos in a separate isolate.
+  return compute(parsePosts, response.body);
 }

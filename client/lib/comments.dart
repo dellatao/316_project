@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:convert';
 class Todo {
@@ -26,7 +27,7 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   List<int>flagCountList = [];
   List<int>likeCountList = [];
   List<int>dislikeCountList = [];
-  Future<Comment> comment;
+  Future<List<Comment>> comment;
   final commentController = TextEditingController();
 
   void dispose() {
@@ -38,7 +39,7 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   @override
   void initState() {
     super.initState();
-    comment = fetchComment();
+    comment = fetchComments(http.Client());
   }
 
 
@@ -58,15 +59,15 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
     setState(() => _comments.removeAt(index));
   }
   Widget _buildCommentList() {
-    return FutureBuilder<Comment>(
-        future: comment,
+    return FutureBuilder<List<Comment>>(
+        future: fetchComments(http.Client()),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            if(_comments.indexOf(snapshot.data.body) == -1){
-              _addComment(snapshot.data.body);}
+            _addExistingItems(snapshot.data);
           } else if (snapshot.hasError) {
             return Text("${snapshot.error}");
           }
+
 
           return new ListView.builder(
             itemBuilder: (context, index) {
@@ -80,6 +81,19 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
           );
         }
     );
+  }
+
+
+  void _addExistingItems(final List<Comment> comments) {
+    for (var c in comments) {
+      _comments.add(c.body);
+      isFlaggedList.add(false);
+      isLikedList.add(false);
+      isDislikedList.add(false);
+      flagCountList.add(0);
+      likeCountList.add(0);
+      dislikeCountList.add(0);
+    }
   }
 
 
@@ -197,15 +211,18 @@ class Comment {
     );
   }
 }
-Future<Comment> fetchComment() async {
-  final response =
-  await http.get('https://jsonplaceholder.typicode.com/comments/1');
 
-  if (response.statusCode == 200) {
-    // If server returns an OK response, parse the JSON.
-    return Comment.fromJson(json.decode(response.body));
-  } else {
-    // If that response was not OK, throw an error.
-    throw Exception('Failed to load post');
-  }
+List<Comment> parseComments(String responseBody) {
+  final parsed = json.decode(responseBody).cast<Map<String, dynamic>>();
+
+  return parsed.map<Comment>((json) => Comment.fromJson(json)).toList();
+}
+
+
+Future<List<Comment>> fetchComments(http.Client client) async {
+  final response =
+  await client.get('https://jsonplaceholder.typicode.com/comments');
+
+  // Use the compute function to run parsePhotos in a separate isolate.
+  return compute(parseComments, response.body);
 }

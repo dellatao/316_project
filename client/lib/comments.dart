@@ -1,8 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'vortex.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:convert' as convert;
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/http.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:async';
+import 'comments.dart';
+import 'dart:convert';
+import 'dart:convert' as convert;
+import 'user.dart';
+import 'vortex.dart';
+
 class Todo {
   final String title;
   final String description;
@@ -14,8 +28,10 @@ class CommentsPage extends StatefulWidget {
 createState() => new CommentsPageState();
 
 final Todo todo;
+final int pid;
+final User user;
 
-CommentsPage({Key key, @required this.todo}) : super(key: key);
+CommentsPage({Key key, @required this.todo, @required this.pid, @required this.user}) : super(key: key);
 }
 
 class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClientMixin<CommentsPage>{
@@ -27,6 +43,7 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   List<int>flagCountList = [];
   List<int>likeCountList = [];
   List<int>dislikeCountList = [];
+  List<int>cids = [];
   Future<List<Comment>> comment;
   final commentController = TextEditingController();
 
@@ -39,11 +56,11 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   @override
   void initState() {
     super.initState();
-    comment = fetchComments(http.Client());
+    comment = fetchComments(http.Client(), widget.pid);
   }
 
 
-  void _addComment(String val){
+  void _addComment(String val, int cid){
     if (val.length >0 ) {
       _comments.add(val);
       isFlaggedList.add(false);
@@ -52,6 +69,7 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
       flagCountList.add(0);
       likeCountList.add(0);
       dislikeCountList.add(0);
+      cids.add(cid);
     }
   }
 
@@ -60,7 +78,7 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   }
   Widget _buildCommentList() {
     return FutureBuilder<List<Comment>>(
-        future: fetchComments(http.Client()),
+        future: fetchComments(http.Client(), widget.pid),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             _addExistingItems(snapshot.data);
@@ -86,13 +104,16 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
 
   void _addExistingItems(final List<Comment> comments) {
     for (var c in comments) {
-      _comments.add(c.body);
-      isFlaggedList.add(false);
-      isLikedList.add(false);
-      isDislikedList.add(false);
-      flagCountList.add(0);
-      likeCountList.add(0);
-      dislikeCountList.add(0);
+      if (! cids.contains(c.cid)) {
+        _comments.add(c.context);
+        isFlaggedList.add(false);
+        isLikedList.add(false);
+        isDislikedList.add(false);
+        flagCountList.add(0);
+        likeCountList.add(0);
+        dislikeCountList.add(0);
+        cids.add(c.cid);
+      }
     }
   }
 
@@ -123,11 +144,11 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
       trailing: Row(mainAxisSize: MainAxisSize.min,
         children: <Widget> [
           IconButton(icon: Icon(Icons.flag),  color: isFlagged ? Colors.redAccent:null, iconSize: 30, onPressed: () {
-            setState(() {
+            //setState(() {
               //_pressed(isPressed);
               toggleCount(isFlagged, flagCountList, isFlaggedList, index);
 
-            });
+            //});
           }),
           Text(flagCount.toString()),
           IconButton(icon: Icon(Icons.keyboard_arrow_up),  color: isLiked ? Colors.deepPurpleAccent:null, iconSize: 30, onPressed: () {
@@ -157,9 +178,16 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: new AppBar(
-            title: Text("Comments"),
-            backgroundColor: new Color(0xFF131515)),
+        appBar: AppBar(
+          leading: new IconButton(
+            icon: new Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop() //Navigator.push(
+                      //context,
+                      //MaterialPageRoute(builder: (context) => VortexApp(user: widget.user))),
+          ),
+          title: Text("Comments"),
+          backgroundColor:  new Color(0xFF131515)),
+
         body: Column(children: <Widget>[
           new ListTile(
               title: new Text(widget.todo.title),
@@ -180,7 +208,10 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
               child: Text('Submit'),
               onPressed: () {
                 setState(() {
-                _addComment(commentController.text);
+
+                Future<Comment> newcomment = _makeCommentRequest(widget.user.uid, widget.pid, commentController.text);
+                newcomment.then((value) => _addComment(commentController.text, value.cid));
+
                 commentController.clear();
                 });
               }
@@ -195,34 +226,68 @@ class Comment {
   final int cid;
   final int uid;
   final int pid;
-  final String body;
+  final String context;
   final DateTime deletedAt;
 
 
-  Comment({this.cid, this.uid, this.pid, this.body, this.deletedAt});
+  Comment({this.cid, this.uid, this.pid, this.context, this.deletedAt});
 
   factory Comment.fromJson(Map<String, dynamic> json) {
     return Comment(
-        cid: json['id'],
+        cid: json['cid'],
         uid: json['uid'],
         pid: json['pid'],
-        body: json['body'],
+        context: json['context'],
         deletedAt: json['deletedAt']
     );
   }
 }
 
-List<Comment> parseComments(String responseBody) {
-  final parsed = json.decode(responseBody).cast<Map<String, dynamic>>();
+Future<List<Comment>> fetchComments(http.Client client, int pid) async {
 
-  return parsed.map<Comment>((json) => Comment.fromJson(json)).toList();
+  print ("fetching");
+  final response =
+  await client.get('https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/comments/$pid');
+
+  print ("response body");
+  print (response.body);
+  var body = json.decode(response.body);
+  print (body);
+  var list = body['result'] as List;
+  print (list.map<Comment>((json) => Comment.fromJson(json)).toList());
+  return list.map<Comment>((json) => Comment.fromJson(json)).toList();
+
 }
 
+Future<Comment> _makeCommentRequest(int uid, int pid, String context) async {
+  // set up POST request arguments
 
-Future<List<Comment>> fetchComments(http.Client client) async {
-  final response =
-  await client.get('https://jsonplaceholder.typicode.com/comments');
 
-  // Use the compute function to run parsePhotos in a separate isolate.
-  return compute(parseComments, response.body);
+  print ("HELLOOOOOO");
+  print(context);
+  String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/comments';
+  Map<String, String> headers = {"Content-type": "application/json"};
+  String json = '{"uid": $uid, "pid": $pid, "context": "$context"}';
+  final response = await post(url, headers: headers, body: json);
+  int statusCode = response.statusCode;
+  print ("COMMENT STATUS CODE");
+  print (statusCode);
+  print(json);
+  Map<String, dynamic> map = convert.jsonDecode(response.body);
+  Comment jsonResponse = Comment.fromJson(map['result']);
+
+
+  if (statusCode == 200) {
+    Map<String, dynamic> map = convert.jsonDecode(response.body);
+    Comment jsonResponse = Comment.fromJson(map['result']);
+    print ("RETURNING JSON RESPONSE");
+    print (jsonResponse.cid);
+    return jsonResponse;
+  }
+
+  if (statusCode == 400) {
+    return Future.error(true);
+  }
+
+  return null;
 }

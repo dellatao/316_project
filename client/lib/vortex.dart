@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'postlist.dart';
+import 'user.dart';
 
 class VortexApp extends StatelessWidget {
+
+  final User user;
+  const VortexApp({Key key, @required this.user}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -27,10 +31,10 @@ class VortexApp extends StatelessWidget {
           ),
           body: TabBarView(
             children: [
-              new PostList(),
-              new PostList(),
-              new PostList(),
-              new PostList(),
+              new PostList(chid: 2, user: user),
+              new PostList(chid: 3, user: user),
+              new PostList(chid: 4, user: user),
+              new PostList(chid: 5, user: user),
             ],
           ),
         ),

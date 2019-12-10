@@ -2,27 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'dart:convert' as convert;
 import 'package:http/http.dart';
-import 'user.dart';
+import 'user_api.dart';
+import 'dart:convert';
 
 class Todo {
   final String title;
   final String description;
-
   Todo(this.title, this.description);
 }
+
 class CommentsPage extends StatefulWidget {
-@override
-createState() => new CommentsPageState();
-
-final Todo todo;
-final int pid;
-final User user;
-final String photo;
-
-CommentsPage({Key key, @required this.todo, @required this.pid, @required this.user, @required this.photo}) : super(key: key);
+  @override
+  createState() => new CommentsPageState();
+  final Todo todo;
+  final int pid;
+  final User user;
+  final String photo;
+  CommentsPage({Key key, @required this.todo, @required this.pid, @required this.user, @required this.photo}) : super(key: key);
 }
 
 class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClientMixin<CommentsPage>{
@@ -37,9 +35,7 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   List<int>cids = [];
   Future<List<Comment>> comment;
   final commentController = TextEditingController();
-
   void dispose() {
-    // Clean up the controller when the widget is disposed.
     commentController.dispose();
     super.dispose();
   }
@@ -48,8 +44,8 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   void initState() {
     super.initState();
     comment = fetchComments(http.Client(), widget.pid);
-  }
 
+  }
 
   void _addComment(String val, int cid){
     if (val.length >0 ) {
@@ -73,8 +69,6 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
           } else if (snapshot.hasError) {
             return Text("${snapshot.error}");
           }
-
-
           return new ListView.builder(
             itemBuilder: (context, index) {
               // itemBuilder will be automatically be called as many times as it takes for the
@@ -88,7 +82,6 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
         }
     );
   }
-
 
   void _addExistingItems(final List<Comment> comments) {
     for (var c in comments) {
@@ -105,35 +98,13 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
     }
   }
 
-
-  void toggleCount(conditionBool, countList, conditionList, index) {
-    setState(() {
-      if (conditionBool) {
-        countList[index] -= 1;
-        conditionList[index] = false;
-      } else {
-        countList[index] += 1;
-        conditionList[index] = true;
-      }
-    });
-  }
   Widget _buildCommentItem(String comment, int index) {
-    bool isFlagged = isFlaggedList[index];
-    bool isLiked = isLikedList[index];
-    bool isDisliked = isDislikedList[index];
-    int flagCount = flagCountList[index];
-    int likeCount = likeCountList[index];
-    int dislikeCount = dislikeCountList[index];
     return new ListTile(
 
       title: new Text(comment),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-
-
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -184,15 +155,12 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   }
 }
 
-
 class Comment {
   final int cid;
   final int uid;
   final int pid;
   final String context;
   final DateTime deletedAt;
-
-
   Comment({this.cid, this.uid, this.pid, this.context, this.deletedAt});
 
   factory Comment.fromJson(Map<String, dynamic> json) {
@@ -217,6 +185,7 @@ Future<List<Comment>> fetchComments(http.Client client, int pid) async {
 
 }
 
+
 Future<Comment> _makeCommentRequest(int uid, int pid, String context) async {
   // set up POST request arguments
   String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/comments';
@@ -224,8 +193,6 @@ Future<Comment> _makeCommentRequest(int uid, int pid, String context) async {
   String json = '{"uid": $uid, "pid": $pid, "context": "$context"}';
   final response = await post(url, headers: headers, body: json);
   int statusCode = response.statusCode;
-  Map<String, dynamic> map = convert.jsonDecode(response.body);
-  Comment jsonResponse = Comment.fromJson(map['result']);
 
 
   if (statusCode == 200) {

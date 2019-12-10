@@ -1,4 +1,3 @@
-import 'dart:io' as prefix0;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
@@ -6,9 +5,11 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'comments.dart';
 import 'dart:convert' as convert;
-import 'user.dart';
+import 'user_api.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'posts_api.dart';
+import 'vote_flag_api.dart';
 
 File file;
 
@@ -30,15 +31,15 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   List<int>likeCountList = [];
   List<int>dislikeCountList = [];
   Future<List<Post>> post;
-//  List<String> _authors = [];
   List<String> _subtitles = [];
   List<int> pids = [];
   List<String> photos = [];
   final titleController = TextEditingController();
   final subtitleController = TextEditingController();
+  TextStyle style = TextStyle(fontFamily: 'Montserrat', fontSize: 20.0);
+  final submitController = TextEditingController();
 
   void dispose() {
-    // Clean up the controller when the widget is disposed.
     titleController.dispose();
     subtitleController.dispose();
     super.dispose();
@@ -53,6 +54,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
 
   void _addPostItem(String task, String subtitle, int pid, String imageUrl) {
     if(task.length > 0) {
+
       _postItems.insert(0, task);
       _subtitles.insert(0,subtitle);
       isFlaggedList.insert(0, false);
@@ -66,13 +68,25 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     }
   }
 
-  void _removePostItem(int index) {
-    setState(() => _postItems.removeAt(index));
+  void _removePostItem(bool banned, int index) {
+    if (banned == true) {
+      _postItems.removeAt(index);
+      _subtitles.removeAt(index);
+      isFlaggedList.removeAt(index);
+      isLikedList.removeAt(index);
+      isDislikedList.removeAt(index);
+      flagCountList.removeAt(index);
+      likeCountList.removeAt(index);
+      dislikeCountList.removeAt(index);
+      pids.removeAt(index);
+      photos.removeAt(index);
+      setState(() {});
+
+
+    }
   }
 
   _commentPressed(String title, int pid, String subtitle, String photoUrl){
-
-
     Navigator.push(context,
         MaterialPageRoute(builder:
             (context) => CommentsPage(todo: Todo(title, subtitle),
@@ -81,46 +95,19 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     );
   }
 
-  void _promptFlagPost(int index) {
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return new AlertDialog(
-              title: new Text('Flag "${_postItems[index]}" as inappropriate?'),
-              actions: <Widget>[
-                new FlatButton(
-                    child: new Text('CANCEL'),
-                    // The alert is actually part of the navigation stack, so to close it, we
-                    // need to pop it.
-                    onPressed: () => Navigator.of(context).pop()
-                ),
-                new FlatButton(
-                    child: new Text('FLAG POST'),
-                    onPressed: () {
-                      _removePostItem(index);
-                      Navigator.of(context).pop();
-                    }
-                )
-              ]
-          );
-        }
-    );
-  }
+
 
   // Build the whole list of post items
   Widget _buildPostList() {
-
     return new FutureBuilder<List<Post>>(
         future: fetchPosts(http.Client(), widget.chid),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-
             _addExistingItems(snapshot.data, widget.chid);
             _updateExistingItems(snapshot.data, widget.chid);
           } else if (snapshot.hasError) {
             return Text("${snapshot.error}");
           }
-
           return new ListView.builder(
             itemBuilder: (context, index) {
               // itemBuilder will be automatically be called as many times as it takes for the
@@ -138,14 +125,10 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   void _updateExistingItems(final List<Post> posts, int num) {
     for (var p in posts) {
       if (p.chid == num) {
-
         int index = pids.indexOf(p.pid);
-
         flagCountList[index] = p.flags.length;
         likeCountList[index] = p.upVotes.length;
         dislikeCountList[index] = p.downVotes.length;
-
-
       }
     }
   }
@@ -153,33 +136,32 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   void _addExistingItems(final List<Post> posts, int num) {
     for (var p in posts) {
       if (p.chid == num) {
-
         if (! pids.contains(p.pid)) {
           if (p.upVotes.contains(widget.user.uid)){
-            isLikedList.add(true);
+            isLikedList.insert(0,true);
           }
           if (! p.upVotes.contains(widget.user.uid)){
-            isLikedList.add(false);
+            isLikedList.insert(0,false);
           }
           if (p.downVotes.contains(widget.user.uid)){
-            isDislikedList.add(true);
+            isDislikedList.insert(0,true);
           }
           if (! p.downVotes.contains(widget.user.uid)){
-            isDislikedList.add(false);
+            isDislikedList.insert(0,false);
           }
           if (p.flags.contains(widget.user.uid)){
-            isFlaggedList.add(true);
+            isFlaggedList.insert(0,true);
           }
           if (! p.flags.contains(widget.user.uid)){
-            isFlaggedList.add(false);
+            isFlaggedList.insert(0,false);
           }
-          flagCountList.add(p.flags.length);
-          likeCountList.add(p.upVotes.length);
-          dislikeCountList.add(p.downVotes.length);
-          _postItems.add(p.title);
-          _subtitles.add(p.detail);
-          pids.add(p.pid);
-          photos.add(p.photoUrl);
+          flagCountList.insert(0,p.flags.length);
+          likeCountList.insert(0,p.upVotes.length);
+          dislikeCountList.insert(0,p.downVotes.length);
+          _postItems.insert(0,p.title);
+          _subtitles.insert(0,p.detail);
+          pids.insert(0,p.pid);
+          photos.insert(0,p.photoUrl);
         }
       }
     }
@@ -190,9 +172,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     bool isFlagged = isFlaggedList[index];
     bool isLiked = isLikedList[index];
     bool isDisliked = isDislikedList[index];
-    int flagCount = flagCountList[index];
-    int likeCount = likeCountList[index];
-    int dislikeCount = dislikeCountList[index];
+
 
     return new ListTile(
         leading:
@@ -203,46 +183,32 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
         trailing: Row(mainAxisSize: MainAxisSize.min,
           children: <Widget> [
             IconButton(icon: Icon(Icons.flag),  color: isFlagged ? Colors.redAccent:null, iconSize: 30, onPressed: () {
-              //setState(() {
-              //_pressed(isPressed);
+              setState(() {
               Future<Flag> future = _makeFlagRequest(pids[index], widget.user.uid);
               future.then((value) => toggleCount(value.exists, isFlaggedList, index));
-
-              //});
-            }),
-            Text(flagCount.toString()),
-            IconButton(icon: Icon(Icons.keyboard_arrow_up),  color: isLiked ? Colors.deepPurpleAccent:null, iconSize: 30, onPressed: () {
-              Future<Vote> vote = _makeVoteRequest(pids[index], widget.user.uid, "upVote");
-              setState(() {
-                //_pressed(isPressed);
-                vote.then((value) => toggleCount(value.isUpVote, isLikedList, index));
-                vote.then((value) => toggleCount(value.isDownVote, isDislikedList, index));
-                //vote.then((value) => toggleVoteCount(value.isUpVote, likeCountList, isLikedList, index));
-
+              future.then((value) => _removePostItem(value.banned, index));
 
               });
             }),
-
+            Text(flagCountList[index].toString()),
+            IconButton(icon: Icon(Icons.keyboard_arrow_up),  color: isLiked ? Colors.deepPurpleAccent:null, iconSize: 30, onPressed: () {
+              Future<Vote> vote = _makeVoteRequest(pids[index], widget.user.uid, "upVote");
+              setState(() {
+                vote.then((value) => toggleCount(value.isUpVote, isLikedList, index));
+                vote.then((value) => toggleCount(value.isDownVote, isDislikedList, index));
+              });
+            }),
             Text(likeCountList[index].toString()),
-
-
-
             IconButton(icon: Icon(Icons.keyboard_arrow_down), color: isDisliked ? Colors.orangeAccent:null, iconSize: 30, onPressed: () {
               Future<Vote> vote = _makeVoteRequest(pids[index], widget.user.uid, "downVote");
               setState(() {
                 vote.then((value) => toggleCount(value.isUpVote, isLikedList, index));
                 vote.then((value) => toggleCount(value.isDownVote, isDislikedList, index));
-                //vote.then((value) => toggleVoteCount(value.isDownVote, dislikeCountList, isDislikedList, index));
-                //vote.then((value) => toggleCount(value.isUpVote, isLikedList, index));
               });
             }),
             Text(dislikeCountList[index].toString()),
           ],
         ),
-
-
-
-
         onTap: () => _commentPressed(postText, pid, subtitle, photos[index])
     );
   }
@@ -250,11 +216,10 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+
+
     return new Scaffold(
-//      appBar: new AppBar(
-//          title: new Text('Vortex Feed'),
-//          backgroundColor: new Color(0xFF7646FF)
-//      ),
       body: _buildPostList(),
       floatingActionButton: new FloatingActionButton(
           heroTag: null,
@@ -277,36 +242,14 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     });
   }
 
-  void toggleVoteCount(conditionBool, countList, conditionList, index) {
-    setState(() {
-      if (conditionBool) {
-        countList[index] += 1;
-        conditionList[index] = true;
-      } else {
-        countList[index] -= 1;
-        conditionList[index] = false;
-      }
-    });
-  }
-  void authenicate(String title, String subtitle, String value) {
-    print ("authenticate");
-    print (title);
-    Future<Post> psot = _makePostRequest(widget.chid, widget.user.uid, title, subtitle, value);
-    print ("TIT|LECONTROLLER");
-
-    psot.then((value) => _addPostItem(title, subtitle, value.pid, value.photoUrl));
-
-
+  void authenticate(String title, String subtitle, String value) {
+    Future<Post> post = _makePostRequest(widget.chid, widget.user.uid, title, subtitle, value);
+    post.then((value) => _addPostItem(title, subtitle, value.pid, value.photoUrl));
     Navigator.of(context).pop();
-    //Navigator.push(
-        //context,
-        //MaterialPageRoute(builder: (context) => VortexApp(user: widget.user)));
   }
+
   void _pushAddPostScreen() {
-    // Push this page onto the stack
     Navigator.of(context).push(
-      // MaterialPageRoute will automatically animate the screen entry, as well as adding
-      // a back button to close it
         new MaterialPageRoute(
             builder: (context) {
               return new Scaffold(
@@ -318,20 +261,17 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
                       children: <Widget>[
                         new TextField(
                           autofocus: true,
-//                        onSubmitted: (val) {
-//                          _addPostItem(val);
-//                        },
+                          style: style,
                           controller: titleController,
                           decoration: new InputDecoration(
                               hintText: 'Title',
                               contentPadding: const EdgeInsets.all(16.0)
+
                           ),
                         ),
                         new TextField(
                           autofocus: true,
-//                        onSubmitted: (dval) {
-//                          _addPostItem(dval);
-//                        },
+                          style:style,
                           controller: subtitleController,
 
                           decoration: new InputDecoration(
@@ -339,34 +279,75 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
                               contentPadding: const EdgeInsets.all(16.0)
                           ),
                         ),
-                        RaisedButton(
-                          onPressed: _choose,
-                          child: Text('Choose Image'),
+                        SizedBox(
+                            height: 40.0
                         ),
-                        
-
-                        RaisedButton(
-                            child: Text('Submit'),
+                        ButtonTheme(
+                          minWidth:15.0,
+                          height: 10.0,
+                        child: Material(
+                          elevation: 5.0,
+                          borderRadius: BorderRadius.circular(20.0),
+                          color: Colors.orangeAccent,
+                          child: MaterialButton(
+                            padding: EdgeInsets.fromLTRB(10.0, 5.0, 10.0, 5.0),
                             onPressed: () {
+                              _choose();
+                            },
+                            child: Text("Choose Image",
+                                textAlign: TextAlign.center,
+                                style: style.copyWith(
+                                    color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        ),
+                        SizedBox(
+                            height: 20.0
+                        ),
+                        ButtonTheme(
+                            minWidth: 140.0,
+                            height: 10.0,
+                            child: Material(
+                          elevation: 5.0,
+                          borderRadius: BorderRadius.circular(20.0),
+                          color: Colors.deepPurpleAccent,
+                          child: MaterialButton(
+
+                            padding: EdgeInsets.fromLTRB(10.0, 5.0, 10.0, 5.0),
+                            onPressed: () {
+                              String title = titleController.text;
+                              String subtitle = subtitleController.text;
                               if (file != null){
-                                String title = titleController.text;
                                 Future<String> photo = _makePhotoRequest("photo$title", file);
-                                String subtitle = subtitleController.text;
-                                photo.then((value) => authenicate(title, subtitle, value) );
-                                print (titleController.text);
+                                photo.then((value) => authenticate(title, subtitle, value) );
                                 setState(() {
-                                file = null;
+                                  file = null;
                                 });
                               }
-
+                              else{
+                                Future<Post> post = _makePostRequest(widget.chid, widget.user.uid, title, subtitle, null);
+                                post.then((value) =>  _addPostItem(title, subtitle, value.pid, value.photoUrl));
+                                Navigator.of(context).pop();
+                                setState(() {
+                                });
+                              }
                               titleController.clear();
                               subtitleController.clear();
-
-                            }
+                            },
+                            child: Text("Submit!",
+                                textAlign: TextAlign.center,
+                                style: style.copyWith(
+                                    color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
                         ),
-                        SizedBox(width: 10.0),
+                        ),
+
+                        SizedBox(height: 60.0),
                             file == null
-                            ? Text('No Image Selected')
+                            ? Text("No Image Selected",
+                                textAlign: TextAlign.center,
+                                style: style.copyWith(
+                                    color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14.0))
                             : Image.file(file)
                       ]
                   ),
@@ -378,59 +359,6 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   }
 }
 
-class Post {
-  int pid;
-  int chid;
-  int uid;
-  String title;
-  String detail;
-  String photoUrl;
-  List<dynamic> upVotes;
-  List <dynamic> downVotes;
-  String deletedat;
-  List <dynamic> flags;
-
-
-  Post({this.pid, this.chid, this.uid, this.title, this.detail, this.photoUrl, this.upVotes, this.downVotes, this.flags, this.deletedat});
-
-  factory Post.fromJson(Map<String, dynamic> json) {
-    return Post(
-      pid: json['pid'],
-      chid: json['chid'],
-      uid:  json['uid'],
-      title: json['title'],
-      detail: json['detail'],
-      photoUrl: json['photourl'],
-      deletedat: json['deletedat'],
-      upVotes: json['upVotes'] as List<dynamic>,
-      downVotes: json['downVotes'] as List<dynamic>,
-      flags: json['flags'] as List<dynamic>,
-    );
-  }
-}
-
-
-
-Future<List<Post>> fetchPosts(http.Client client, int chid) async {
-  final response =
-  await client.get('https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/posts/$chid');
-
-  Map<String, dynamic> map = convert.jsonDecode(response.body);
-
-  var list = map['results'] as List;
-  int statusCode = response.statusCode;
-
-  if (statusCode == 200){
-//    Post jsonResponse = Post.fromJson(map['result']);
-    return list.map<Post>((json) => Post.fromJson(json)).toList();
-  }
-  if (statusCode == 400){
-    return null;
-  }
-
-
-}
-
 
 Future<Post> _makePostRequest(int chid, int uid, String title, String detail, String photoUrl) async {
   // set up POST request arguments
@@ -438,9 +366,6 @@ Future<Post> _makePostRequest(int chid, int uid, String title, String detail, St
   Map<String, String> headers = {"Content-type": "application/json"};
   String json = '{"chid": $chid, "uid": $uid, "title": "$title", "detail": "$detail", "photoUrl": "$photoUrl"}';
   final response = await post(url, headers: headers, body: json);
-  int statusCode = response.statusCode;
-  print ("JSON TITLE BEFORE");
-  print (title);
   Map<String, dynamic> map = convert.jsonDecode(response.body);
   Post jsonResponse = Post.fromJson(map['result']);
   jsonResponse.chid = chid;
@@ -452,105 +377,41 @@ Future<Post> _makePostRequest(int chid, int uid, String title, String detail, St
   jsonResponse.downVotes = [];
   jsonResponse.flags = [];
   jsonResponse.deletedat = null;
-  print ("JSON TITLE");
-  print (jsonResponse.title);
   return jsonResponse;
 
 }
 
-
-
 Future<String> _makePhotoRequest(String name, File data) async {
-  // set up POST request arguments
-
   String base64Image = convert.base64Encode(data.readAsBytesSync());
   String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/upload';
   Map<String, String> headers = {"Content-type": "application/json"};
   String json = '{"name": "$name", "data": "$base64Image"}';
-
   final response = await post(url, headers: headers, body: json);
-  int statusCode = response.statusCode;
-  print ("RESPONSE BODY FOR PHOTOS");
-  print (response.body);
-
   Map<String, dynamic> map = convert.jsonDecode(response.body);
   String jsonResponse = map['result'].toString();
-
-  print ("MAP TO STRING");
-  print (jsonResponse);
   return jsonResponse;
-
-}
-
-class Flag {
-  bool exists;
-  bool banned;
-
-
-  Flag({this.exists, this.banned});
-
-  factory Flag.fromJson(Map<String, dynamic> json) {
-    return Flag(
-      exists: json['exists'] as bool,
-      banned: json['banned'] as bool,
-    );
-  }
-}
-Future<Flag> _makeFlagRequest(int pid, int uid) async {
-  // set up POST request arguments
-
-  String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/posts/$pid/flag/$uid';
-  Map<String, String> headers = {"Content-type": "application/json"};
-  String json = '{"pid": $pid}';
-  final response = await post(url, headers: headers, body: json);
-  int statusCode = response.statusCode;
-
-
-  Map<String, dynamic> map = convert.jsonDecode(response.body);
-  Flag jsonResponse = Flag.fromJson(map['result']);
-
-
-
-  return jsonResponse;
-
 }
 
 void _choose() async {
   file = await ImagePicker.pickImage(source: ImageSource.gallery);
-// file = await ImagePicker.pickImage(source: ImageSource.gallery);
 }
 
-void _upload() {
-  if (file == null) return;
-  String base64Image = convert.base64Encode(file.readAsBytesSync());
-  String fileName = file.path.split("/").last;
+Future<Flag> _makeFlagRequest(int pid, int uid) async {
+  String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/posts/$pid/flag/$uid';
+  Map<String, String> headers = {"Content-type": "application/json"};
+  String json = '{"pid": $pid}';
+  final response = await post(url, headers: headers, body: json);
+  Map<String, dynamic> map = convert.jsonDecode(response.body);
+  Flag jsonResponse = Flag.fromJson(map['result']);
+  return jsonResponse;
 }
 
-class Vote {
-  bool isUpVote;
-  bool isDownVote;
 
-
-  Vote({this.isUpVote, this.isDownVote});
-
-  factory Vote.fromJson(Map<String, dynamic> json) {
-    return Vote(
-      isUpVote: json['isUpVote'] as bool,
-      isDownVote: json['isDownVote'] as bool,
-    );
-  }
-}
 Future<Vote> _makeVoteRequest(int pid, int uid, String voteType) async {
-  // set up POST request arguments
-
   String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/posts/$pid/$voteType/$uid';
   Map<String, String> headers = {"Content-type": "application/json"};
   final response = await post(url, headers: headers);
-  int statusCode = response.statusCode;
-
   Map<String, dynamic> map = convert.jsonDecode(response.body);
   Vote jsonResponse = Vote.fromJson(map['result']);
-
   return jsonResponse;
-
 }

@@ -40,9 +40,7 @@ Future<User> fetchUser(http.Client client, username, password) async {
   // check the status code for the result
   int statusCode = response.statusCode;
 
-//  print(headers);
-//  print(json);
-//  print(statusCode);
+
 
   if (statusCode == 200)
   {
@@ -50,11 +48,13 @@ Future<User> fetchUser(http.Client client, username, password) async {
     User person = User.fromJson(map['result']);
     if (person.deletedat == null)
       return person;
+    if (person.deletedat != null)
+      return Future.error("you have been deleted!");
   }
 
   if (statusCode == 400)
   {
-    return Future.error(true);
+    return Future.error("username or password incorrect!");
   }
 
   return null;
@@ -78,7 +78,7 @@ Future<User> fetchNewUser(http.Client client, String username, String password, 
   }
 
   if (statusCode == 400) {
-    return Future.error(true);
+    return Future.error("this phone number is banned");
   }
 
   return null;

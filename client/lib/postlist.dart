@@ -36,6 +36,8 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   List<String> photos = [];
   final titleController = TextEditingController();
   final subtitleController = TextEditingController();
+  TextStyle style = TextStyle(fontFamily: 'Montserrat', fontSize: 20.0);
+  final submitController = TextEditingController();
 
   void dispose() {
     // Clean up the controller when the widget is disposed.
@@ -66,8 +68,10 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     }
   }
 
-  void _removePostItem(int index) {
-    setState(() => _postItems.removeAt(index));
+  void _removePostItem(bool banned, int index) {
+    if (banned == true) {
+      setState(() => _postItems.removeAt(index));
+    }
   }
 
   _commentPressed(String title, int pid, String subtitle, String photoUrl){
@@ -81,31 +85,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     );
   }
 
-  void _promptFlagPost(int index) {
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return new AlertDialog(
-              title: new Text('Flag "${_postItems[index]}" as inappropriate?'),
-              actions: <Widget>[
-                new FlatButton(
-                    child: new Text('CANCEL'),
-                    // The alert is actually part of the navigation stack, so to close it, we
-                    // need to pop it.
-                    onPressed: () => Navigator.of(context).pop()
-                ),
-                new FlatButton(
-                    child: new Text('FLAG POST'),
-                    onPressed: () {
-                      _removePostItem(index);
-                      Navigator.of(context).pop();
-                    }
-                )
-              ]
-          );
-        }
-    );
-  }
+
 
   // Build the whole list of post items
   Widget _buildPostList() {
@@ -156,30 +136,30 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
 
         if (! pids.contains(p.pid)) {
           if (p.upVotes.contains(widget.user.uid)){
-            isLikedList.add(true);
+            isLikedList.insert(0,true);
           }
           if (! p.upVotes.contains(widget.user.uid)){
-            isLikedList.add(false);
+            isLikedList.insert(0,false);
           }
           if (p.downVotes.contains(widget.user.uid)){
-            isDislikedList.add(true);
+            isDislikedList.insert(0,true);
           }
           if (! p.downVotes.contains(widget.user.uid)){
-            isDislikedList.add(false);
+            isDislikedList.insert(0,false);
           }
           if (p.flags.contains(widget.user.uid)){
-            isFlaggedList.add(true);
+            isFlaggedList.insert(0,true);
           }
           if (! p.flags.contains(widget.user.uid)){
-            isFlaggedList.add(false);
+            isFlaggedList.insert(0,false);
           }
-          flagCountList.add(p.flags.length);
-          likeCountList.add(p.upVotes.length);
-          dislikeCountList.add(p.downVotes.length);
-          _postItems.add(p.title);
-          _subtitles.add(p.detail);
-          pids.add(p.pid);
-          photos.add(p.photoUrl);
+          flagCountList.insert(0,p.flags.length);
+          likeCountList.insert(0,p.upVotes.length);
+          dislikeCountList.insert(0,p.downVotes.length);
+          _postItems.insert(0,p.title);
+          _subtitles.insert(0,p.detail);
+          pids.insert(0,p.pid);
+          photos.insert(0,p.photoUrl);
         }
       }
     }
@@ -203,14 +183,15 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
         trailing: Row(mainAxisSize: MainAxisSize.min,
           children: <Widget> [
             IconButton(icon: Icon(Icons.flag),  color: isFlagged ? Colors.redAccent:null, iconSize: 30, onPressed: () {
-              //setState(() {
+              setState(() {
               //_pressed(isPressed);
               Future<Flag> future = _makeFlagRequest(pids[index], widget.user.uid);
               future.then((value) => toggleCount(value.exists, isFlaggedList, index));
+              future.then((value) => _removePostItem(value.banned, index));
 
-              //});
+              });
             }),
-            Text(flagCount.toString()),
+            Text(flagCountList[index].toString()),
             IconButton(icon: Icon(Icons.keyboard_arrow_up),  color: isLiked ? Colors.deepPurpleAccent:null, iconSize: 30, onPressed: () {
               Future<Vote> vote = _makeVoteRequest(pids[index], widget.user.uid, "upVote");
               setState(() {
@@ -250,6 +231,9 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+
+
     return new Scaffold(
 //      appBar: new AppBar(
 //          title: new Text('Vortex Feed'),
@@ -289,11 +273,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     });
   }
   void authenicate(String title, String subtitle, String value) {
-    print ("authenticate");
-    print (title);
     Future<Post> psot = _makePostRequest(widget.chid, widget.user.uid, title, subtitle, value);
-    print ("TIT|LECONTROLLER");
-
     psot.then((value) => _addPostItem(title, subtitle, value.pid, value.photoUrl));
 
 
@@ -302,6 +282,10 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
         //context,
         //MaterialPageRoute(builder: (context) => VortexApp(user: widget.user)));
   }
+
+
+
+
   void _pushAddPostScreen() {
     // Push this page onto the stack
     Navigator.of(context).push(
@@ -318,6 +302,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
                       children: <Widget>[
                         new TextField(
                           autofocus: true,
+                          style: style,
 //                        onSubmitted: (val) {
 //                          _addPostItem(val);
 //                        },
@@ -325,10 +310,12 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
                           decoration: new InputDecoration(
                               hintText: 'Title',
                               contentPadding: const EdgeInsets.all(16.0)
+
                           ),
                         ),
                         new TextField(
                           autofocus: true,
+                          style:style,
 //                        onSubmitted: (dval) {
 //                          _addPostItem(dval);
 //                        },
@@ -339,34 +326,81 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
                               contentPadding: const EdgeInsets.all(16.0)
                           ),
                         ),
-                        RaisedButton(
-                          onPressed: _choose,
-                          child: Text('Choose Image'),
-                        ),
-                        
 
-                        RaisedButton(
-                            child: Text('Submit'),
+                        SizedBox(
+                            height: 40.0
+                        ),
+                        ButtonTheme(
+                          minWidth:15.0,
+                          height: 10.0,
+                        child: Material(
+                          elevation: 5.0,
+                          borderRadius: BorderRadius.circular(20.0),
+                          color: Colors.orangeAccent,
+                          child: MaterialButton(
+                            padding: EdgeInsets.fromLTRB(10.0, 5.0, 10.0, 5.0),
                             onPressed: () {
+                              _choose();
+
+                            },
+                            child: Text("Choose Image",
+                                textAlign: TextAlign.center,
+                                style: style.copyWith(
+                                    color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        ),
+
+                        SizedBox(
+                            height: 20.0
+                        ),
+                        ButtonTheme(
+                            minWidth: 140.0,
+                            height: 10.0,
+                            child: Material(
+                          elevation: 5.0,
+                          borderRadius: BorderRadius.circular(20.0),
+                          color: Colors.deepPurpleAccent,
+                          child: MaterialButton(
+
+                            padding: EdgeInsets.fromLTRB(10.0, 5.0, 10.0, 5.0),
+                            onPressed: () {
+                              String title = titleController.text;
+                              String subtitle = subtitleController.text;
                               if (file != null){
-                                String title = titleController.text;
                                 Future<String> photo = _makePhotoRequest("photo$title", file);
-                                String subtitle = subtitleController.text;
                                 photo.then((value) => authenicate(title, subtitle, value) );
-                                print (titleController.text);
                                 setState(() {
-                                file = null;
+                                  file = null;
                                 });
                               }
 
+                              else{
+                                Future<Post> psot = _makePostRequest(widget.chid, widget.user.uid, title, subtitle, null);
+                                psot.then((value) =>  _addPostItem(title, subtitle, value.pid, value.photoUrl));
+                                Navigator.of(context).pop();
+                                setState(() {
+
+                                });
+                              }
                               titleController.clear();
                               subtitleController.clear();
 
-                            }
+                            },
+                            child: Text("Submit!",
+                                textAlign: TextAlign.center,
+                                style: style.copyWith(
+                                    color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
                         ),
-                        SizedBox(width: 10.0),
+                        ),
+
+                        SizedBox(height: 60.0),
                             file == null
-                            ? Text('No Image Selected')
+                            ? Text("No Image Selected",
+                                textAlign: TextAlign.center,
+                                style: style.copyWith(
+                                    color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14.0))
                             : Image.file(file)
                       ]
                   ),
@@ -377,6 +411,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     );
   }
 }
+
 
 class Post {
   int pid;
@@ -439,8 +474,6 @@ Future<Post> _makePostRequest(int chid, int uid, String title, String detail, St
   String json = '{"chid": $chid, "uid": $uid, "title": "$title", "detail": "$detail", "photoUrl": "$photoUrl"}';
   final response = await post(url, headers: headers, body: json);
   int statusCode = response.statusCode;
-  print ("JSON TITLE BEFORE");
-  print (title);
   Map<String, dynamic> map = convert.jsonDecode(response.body);
   Post jsonResponse = Post.fromJson(map['result']);
   jsonResponse.chid = chid;
@@ -452,8 +485,6 @@ Future<Post> _makePostRequest(int chid, int uid, String title, String detail, St
   jsonResponse.downVotes = [];
   jsonResponse.flags = [];
   jsonResponse.deletedat = null;
-  print ("JSON TITLE");
-  print (jsonResponse.title);
   return jsonResponse;
 
 }
@@ -470,14 +501,10 @@ Future<String> _makePhotoRequest(String name, File data) async {
 
   final response = await post(url, headers: headers, body: json);
   int statusCode = response.statusCode;
-  print ("RESPONSE BODY FOR PHOTOS");
-  print (response.body);
 
   Map<String, dynamic> map = convert.jsonDecode(response.body);
   String jsonResponse = map['result'].toString();
 
-  print ("MAP TO STRING");
-  print (jsonResponse);
   return jsonResponse;
 
 }
@@ -508,8 +535,6 @@ Future<Flag> _makeFlagRequest(int pid, int uid) async {
 
   Map<String, dynamic> map = convert.jsonDecode(response.body);
   Flag jsonResponse = Flag.fromJson(map['result']);
-
-
 
   return jsonResponse;
 

@@ -62,9 +62,6 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     void authenicate(User value) {
-
-      print ("UID");
-      print (value);
       Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => VortexApp(user: value)));
@@ -73,6 +70,23 @@ class _MyHomePageState extends State<MyHomePage> {
     void handleError(bool error){
       print("an error has occured");
     }
+
+    void _userPopup(String error) {
+      showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return new AlertDialog(
+                title: new Text(error),
+            );
+          }
+      );
+    }
+
+
+
+
+
+
 
     final loginButton = Material(
       elevation: 5.0,
@@ -84,7 +98,7 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: () {
           Future<User> future = fetchUser(http.Client(), allController.text, passwordController.text);
           future.then((value) => authenicate(value))
-              .catchError((error) => handleError(error));
+              .catchError((error) => _userPopup(error));
         },
         child: Text("Login",
             textAlign: TextAlign.center,
@@ -125,10 +139,9 @@ class _MyHomePageState extends State<MyHomePage> {
           minWidth: MediaQuery.of(context).size.width,
           padding: EdgeInsets.fromLTRB(20.0, 15.0, 20.0, 15.0),
           onPressed: () {
-            print("reached");
             Future<User> future = fetchNewUser(http.Client(), userController.text, passwordController.text, phonecontroller.text);
             future.then((value) => authenicate(value))
-                .catchError((error) => handleError(error));
+                .catchError((error) => _userPopup(error));
           },
           child: Text("Sign Up",
               textAlign: TextAlign.center,

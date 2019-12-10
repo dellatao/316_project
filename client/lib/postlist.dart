@@ -1,5 +1,4 @@
 import 'dart:io' as prefix0;
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
@@ -12,10 +11,10 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 File file;
+
 class PostList extends StatefulWidget {
   @override
   createState() => new PostListState();
-
   final int chid;
   final User user;
   const PostList({Key key, @required this.chid, @required this.user}) : super(key: key);
@@ -71,14 +70,13 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     setState(() => _postItems.removeAt(index));
   }
 
-  _commentPressed(String title, int pid, String subtitle){
+  _commentPressed(String title, int pid, String subtitle, String photoUrl){
 
-    print(pid);
 
     Navigator.push(context,
         MaterialPageRoute(builder:
             (context) => CommentsPage(todo: Todo(title, subtitle),
-            pid: pid, user:widget.user)
+            pid: pid, user:widget.user, photo: photoUrl)
         )
     );
   }
@@ -111,11 +109,14 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
 
   // Build the whole list of post items
   Widget _buildPostList() {
+
     return new FutureBuilder<List<Post>>(
         future: fetchPosts(http.Client(), widget.chid),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
+
             _addExistingItems(snapshot.data, widget.chid);
+            _updateExistingItems(snapshot.data, widget.chid);
           } else if (snapshot.hasError) {
             return Text("${snapshot.error}");
           }
@@ -134,17 +135,48 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
     );
   }
 
+  void _updateExistingItems(final List<Post> posts, int num) {
+    for (var p in posts) {
+      if (p.chid == num) {
+
+        int index = pids.indexOf(p.pid);
+
+        flagCountList[index] = p.flags.length;
+        likeCountList[index] = p.upVotes.length;
+        dislikeCountList[index] = p.downVotes.length;
+
+
+      }
+    }
+  }
+
   void _addExistingItems(final List<Post> posts, int num) {
     for (var p in posts) {
       if (p.chid == num) {
+
         if (! pids.contains(p.pid)) {
+          if (p.upVotes.contains(widget.user.uid)){
+            isLikedList.add(true);
+          }
+          if (! p.upVotes.contains(widget.user.uid)){
+            isLikedList.add(false);
+          }
+          if (p.downVotes.contains(widget.user.uid)){
+            isDislikedList.add(true);
+          }
+          if (! p.downVotes.contains(widget.user.uid)){
+            isDislikedList.add(false);
+          }
+          if (p.flags.contains(widget.user.uid)){
+            isFlaggedList.add(true);
+          }
+          if (! p.flags.contains(widget.user.uid)){
+            isFlaggedList.add(false);
+          }
+          flagCountList.add(p.flags.length);
+          likeCountList.add(p.upVotes.length);
+          dislikeCountList.add(p.downVotes.length);
           _postItems.add(p.title);
-          isFlaggedList.add(false);
-          isLikedList.add(false);
-          isDislikedList.add(false);
-          flagCountList.add(p.flag);
-          likeCountList.add(p.upvote);
-          dislikeCountList.add(p.downvote);
           _subtitles.add(p.detail);
           pids.add(p.pid);
           photos.add(p.photoUrl);
@@ -164,7 +196,7 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
 
     return new ListTile(
         leading:
-        photos[index] != null ? Image.network(photos[index]) : Container(constraints: BoxConstraints(maxWidth: 20, maxHeight: 20)),
+        photos[index] != null ? Image.network(photos[index]) : Container(constraints: BoxConstraints(maxWidth: 10, maxHeight: 10)),
         title: new Text(postText),
 //        subtitle: new Text(author),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
@@ -173,35 +205,45 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
             IconButton(icon: Icon(Icons.flag),  color: isFlagged ? Colors.redAccent:null, iconSize: 30, onPressed: () {
               //setState(() {
               //_pressed(isPressed);
-              Future<Flag> future = _makeFlagRequest(pids[index]);
-              future.then((value) => toggleCount(isFlagged, flagCountList, isFlaggedList, index));
+              Future<Flag> future = _makeFlagRequest(pids[index], widget.user.uid);
+              future.then((value) => toggleCount(value.exists, isFlaggedList, index));
 
               //});
             }),
             Text(flagCount.toString()),
             IconButton(icon: Icon(Icons.keyboard_arrow_up),  color: isLiked ? Colors.deepPurpleAccent:null, iconSize: 30, onPressed: () {
+              Future<Vote> vote = _makeVoteRequest(pids[index], widget.user.uid, "upVote");
               setState(() {
                 //_pressed(isPressed);
-                toggleCount(isLiked, likeCountList, isLikedList, index);
+                vote.then((value) => toggleCount(value.isUpVote, isLikedList, index));
+                vote.then((value) => toggleCount(value.isDownVote, isDislikedList, index));
+                //vote.then((value) => toggleVoteCount(value.isUpVote, likeCountList, isLikedList, index));
+
+
               });
             }),
-            Text(likeCount.toString()),
+
+            Text(likeCountList[index].toString()),
 
 
 
             IconButton(icon: Icon(Icons.keyboard_arrow_down), color: isDisliked ? Colors.orangeAccent:null, iconSize: 30, onPressed: () {
+              Future<Vote> vote = _makeVoteRequest(pids[index], widget.user.uid, "downVote");
               setState(() {
-                toggleCount(isDisliked, dislikeCountList, isDislikedList, index);
+                vote.then((value) => toggleCount(value.isUpVote, isLikedList, index));
+                vote.then((value) => toggleCount(value.isDownVote, isDislikedList, index));
+                //vote.then((value) => toggleVoteCount(value.isDownVote, dislikeCountList, isDislikedList, index));
+                //vote.then((value) => toggleCount(value.isUpVote, isLikedList, index));
               });
             }),
-            Text(dislikeCount.toString()),
+            Text(dislikeCountList[index].toString()),
           ],
         ),
 
 
 
 
-        onTap: () => _commentPressed(postText, pid, subtitle)
+        onTap: () => _commentPressed(postText, pid, subtitle, photos[index])
     );
   }
 
@@ -225,22 +267,36 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
   }
 
 
-  void toggleCount(conditionBool, countList, conditionList, index) {
+  void toggleCount(conditionBool, conditionList, index) {
     setState(() {
       if (conditionBool) {
-        countList[index] -= 1;
-        conditionList[index] = false;
-      } else {
-        countList[index] += 1;
         conditionList[index] = true;
+      } else {
+        conditionList[index] = false;
       }
     });
   }
-  void authenicate(Post value) {
-    _makePhotoRequest("photo", file, value.pid);
-    _addPostItem(titleController.text, subtitleController.text, value.pid, value.photoUrl);
 
-    print ("THIS WAS ADDED");
+  void toggleVoteCount(conditionBool, countList, conditionList, index) {
+    setState(() {
+      if (conditionBool) {
+        countList[index] += 1;
+        conditionList[index] = true;
+      } else {
+        countList[index] -= 1;
+        conditionList[index] = false;
+      }
+    });
+  }
+  void authenicate(String title, String subtitle, String value) {
+    print ("authenticate");
+    print (title);
+    Future<Post> psot = _makePostRequest(widget.chid, widget.user.uid, title, subtitle, value);
+    print ("TIT|LECONTROLLER");
+
+    psot.then((value) => _addPostItem(title, subtitle, value.pid, value.photoUrl));
+
+
     Navigator.of(context).pop();
     //Navigator.push(
         //context,
@@ -287,22 +343,28 @@ class PostListState extends State<PostList> with AutomaticKeepAliveClientMixin<P
                           onPressed: _choose,
                           child: Text('Choose Image'),
                         ),
-                        SizedBox(width: 10.0),
+                        
+
                         RaisedButton(
-                          onPressed: _upload,
-                          child: Text('Upload Image'),
-                        ),
-                        FlatButton(
                             child: Text('Submit'),
                             onPressed: () {
-                              Future<Post> psot = _makePostRequest(widget.chid, widget.user.uid, titleController.text, subtitleController.text, null);
-                              psot.then((value) => authenicate(value));
+                              if (file != null){
+                                String title = titleController.text;
+                                Future<String> photo = _makePhotoRequest("photo$title", file);
+                                String subtitle = subtitleController.text;
+                                photo.then((value) => authenicate(title, subtitle, value) );
+                                print (titleController.text);
+                                setState(() {
+                                file = null;
+                                });
+                              }
 
                               titleController.clear();
                               subtitleController.clear();
 
                             }
                         ),
+                        SizedBox(width: 10.0),
                             file == null
                             ? Text('No Image Selected')
                             : Image.file(file)
@@ -323,34 +385,49 @@ class Post {
   String title;
   String detail;
   String photoUrl;
-  int upvote;
-  int downvote;
-  int flag;
+  List<dynamic> upVotes;
+  List <dynamic> downVotes;
+  String deletedat;
+  List <dynamic> flags;
 
 
-  Post({this.pid, this.chid, this.uid, this.title, this.detail, this.photoUrl, this.upvote, this.downvote, this.flag});
+  Post({this.pid, this.chid, this.uid, this.title, this.detail, this.photoUrl, this.upVotes, this.downVotes, this.flags, this.deletedat});
 
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
-      pid: json['pid'] as int,
-      chid: json['chid'] as int,
-      uid:  json['uid'] as int,
-      title: json['title'] as String,
-      detail: json['detail'] as String,
-      photoUrl: json['photoUrl'] as String,
-      upvote: json['upvote'] as int,
-      downvote: json['downvote'] as int,
-      flag: json['flag'] as int,
+      pid: json['pid'],
+      chid: json['chid'],
+      uid:  json['uid'],
+      title: json['title'],
+      detail: json['detail'],
+      photoUrl: json['photourl'],
+      deletedat: json['deletedat'],
+      upVotes: json['upVotes'] as List<dynamic>,
+      downVotes: json['downVotes'] as List<dynamic>,
+      flags: json['flags'] as List<dynamic>,
     );
   }
 }
 
+
+
 Future<List<Post>> fetchPosts(http.Client client, int chid) async {
   final response =
   await client.get('https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/posts/$chid');
+
   Map<String, dynamic> map = convert.jsonDecode(response.body);
-  var list = map['result'] as List;
-  return list.map<Post>((json) => Post.fromJson(json)).toList();
+
+  var list = map['results'] as List;
+  int statusCode = response.statusCode;
+
+  if (statusCode == 200){
+//    Post jsonResponse = Post.fromJson(map['result']);
+    return list.map<Post>((json) => Post.fromJson(json)).toList();
+  }
+  if (statusCode == 400){
+    return null;
+  }
+
 
 }
 
@@ -362,77 +439,71 @@ Future<Post> _makePostRequest(int chid, int uid, String title, String detail, St
   String json = '{"chid": $chid, "uid": $uid, "title": "$title", "detail": "$detail", "photoUrl": "$photoUrl"}';
   final response = await post(url, headers: headers, body: json);
   int statusCode = response.statusCode;
-  print (statusCode);
-  print(uid);
-
+  print ("JSON TITLE BEFORE");
+  print (title);
   Map<String, dynamic> map = convert.jsonDecode(response.body);
   Post jsonResponse = Post.fromJson(map['result']);
-  print(jsonResponse.pid);
   jsonResponse.chid = chid;
   jsonResponse.uid = uid;
   jsonResponse.title = title;
   jsonResponse.detail = detail;
   jsonResponse.photoUrl = photoUrl;
-  jsonResponse.upvote = 0;
-  jsonResponse.downvote = 0;
-  jsonResponse.flag = 0;
-
-  print(jsonResponse.chid);
+  jsonResponse.upVotes = [];
+  jsonResponse.downVotes = [];
+  jsonResponse.flags = [];
+  jsonResponse.deletedat = null;
+  print ("JSON TITLE");
+  print (jsonResponse.title);
   return jsonResponse;
 
 }
 
 
 
-Future<String> _makePhotoRequest(String name, File data, int pid) async {
+Future<String> _makePhotoRequest(String name, File data) async {
   // set up POST request arguments
-  print("soju");
+
   String base64Image = convert.base64Encode(data.readAsBytesSync());
-  print("hey");
-  print(base64Image);
-  String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/posts/$pid/upload';
+  String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/upload';
   Map<String, String> headers = {"Content-type": "application/json"};
   String json = '{"name": "$name", "data": "$base64Image"}';
 
-  print("json");
-  print(json);
   final response = await post(url, headers: headers, body: json);
   int statusCode = response.statusCode;
-  print (statusCode);
   print ("RESPONSE BODY FOR PHOTOS");
   print (response.body);
 
-  String map = convert.jsonDecode(response.body);
+  Map<String, dynamic> map = convert.jsonDecode(response.body);
+  String jsonResponse = map['result'].toString();
 
-  print ("MAP");
-  print (map);
-  return map.toString();
+  print ("MAP TO STRING");
+  print (jsonResponse);
+  return jsonResponse;
 
 }
 
 class Flag {
-  int newFlag;
+  bool exists;
   bool banned;
 
 
-  Flag({this.newFlag, this.banned});
+  Flag({this.exists, this.banned});
 
   factory Flag.fromJson(Map<String, dynamic> json) {
     return Flag(
-      newFlag: json['newFlag'] as int,
+      exists: json['exists'] as bool,
       banned: json['banned'] as bool,
     );
   }
 }
-Future<Flag> _makeFlagRequest(int pid) async {
+Future<Flag> _makeFlagRequest(int pid, int uid) async {
   // set up POST request arguments
-  String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/posts/$pid/flag';
+
+  String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/posts/$pid/flag/$uid';
   Map<String, String> headers = {"Content-type": "application/json"};
   String json = '{"pid": $pid}';
   final response = await post(url, headers: headers, body: json);
   int statusCode = response.statusCode;
-  print ("STATUS CODE FALG");
-  print (statusCode);
 
 
   Map<String, dynamic> map = convert.jsonDecode(response.body);
@@ -440,7 +511,6 @@ Future<Flag> _makeFlagRequest(int pid) async {
 
 
 
-  print(jsonResponse.newFlag);
   return jsonResponse;
 
 }
@@ -454,4 +524,33 @@ void _upload() {
   if (file == null) return;
   String base64Image = convert.base64Encode(file.readAsBytesSync());
   String fileName = file.path.split("/").last;
+}
+
+class Vote {
+  bool isUpVote;
+  bool isDownVote;
+
+
+  Vote({this.isUpVote, this.isDownVote});
+
+  factory Vote.fromJson(Map<String, dynamic> json) {
+    return Vote(
+      isUpVote: json['isUpVote'] as bool,
+      isDownVote: json['isDownVote'] as bool,
+    );
+  }
+}
+Future<Vote> _makeVoteRequest(int pid, int uid, String voteType) async {
+  // set up POST request arguments
+
+  String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/posts/$pid/$voteType/$uid';
+  Map<String, String> headers = {"Content-type": "application/json"};
+  final response = await post(url, headers: headers);
+  int statusCode = response.statusCode;
+
+  Map<String, dynamic> map = convert.jsonDecode(response.body);
+  Vote jsonResponse = Vote.fromJson(map['result']);
+
+  return jsonResponse;
+
 }

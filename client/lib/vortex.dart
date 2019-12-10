@@ -31,10 +31,10 @@ class VortexApp extends StatelessWidget {
           ),
           body: TabBarView(
             children: [
+              new PostList(chid: 1, user: user),
               new PostList(chid: 2, user: user),
               new PostList(chid: 3, user: user),
               new PostList(chid: 4, user: user),
-              new PostList(chid: 5, user: user),
             ],
           ),
         ),

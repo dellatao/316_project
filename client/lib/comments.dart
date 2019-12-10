@@ -1,21 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
-import 'vortex.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:convert' as convert;
-
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
-import 'package:flutter/foundation.dart';
-import 'dart:async';
-import 'comments.dart';
-import 'dart:convert';
-import 'dart:convert' as convert;
 import 'user.dart';
-import 'vortex.dart';
 
 class Todo {
   final String title;
@@ -30,8 +20,9 @@ createState() => new CommentsPageState();
 final Todo todo;
 final int pid;
 final User user;
+final String photo;
 
-CommentsPage({Key key, @required this.todo, @required this.pid, @required this.user}) : super(key: key);
+CommentsPage({Key key, @required this.todo, @required this.pid, @required this.user, @required this.photo}) : super(key: key);
 }
 
 class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClientMixin<CommentsPage>{
@@ -73,9 +64,6 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
     }
   }
 
-  void _removeComment(int index) {
-    setState(() => _comments.removeAt(index));
-  }
   Widget _buildCommentList() {
     return FutureBuilder<List<Comment>>(
         future: fetchComments(http.Client(), widget.pid),
@@ -118,7 +106,6 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
   }
 
 
-
   void toggleCount(conditionBool, countList, conditionList, index) {
     setState(() {
       if (conditionBool) {
@@ -141,34 +128,7 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
 
       title: new Text(comment),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      trailing: Row(mainAxisSize: MainAxisSize.min,
-        children: <Widget> [
-          IconButton(icon: Icon(Icons.flag),  color: isFlagged ? Colors.redAccent:null, iconSize: 30, onPressed: () {
-            //setState(() {
-              //_pressed(isPressed);
-              toggleCount(isFlagged, flagCountList, isFlaggedList, index);
 
-            //});
-          }),
-          Text(flagCount.toString()),
-          IconButton(icon: Icon(Icons.keyboard_arrow_up),  color: isLiked ? Colors.deepPurpleAccent:null, iconSize: 30, onPressed: () {
-            setState(() {
-              //_pressed(isPressed);
-              toggleCount(isLiked, likeCountList, isLikedList, index);
-            });
-          }),
-          Text(likeCount.toString()),
-
-
-
-          IconButton(icon: Icon(Icons.keyboard_arrow_down), color: isDisliked ? Colors.orangeAccent:null, iconSize: 30, onPressed: () {
-            setState(() {
-              toggleCount(isDisliked, dislikeCountList, isDislikedList, index);
-            });
-          }),
-          Text(dislikeCount.toString()),
-        ],
-      ),
 
     );
   }
@@ -193,8 +153,10 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
               title: new Text(widget.todo.title),
 
               subtitle: new Text(widget.todo.description),
-              contentPadding: const EdgeInsets.all(20.0)
+              contentPadding: const EdgeInsets.all(20.0),
           ),
+
+          widget.photo != null ? Image.network(widget.photo) : Container(),
           Expanded(child:_buildCommentList()),
           new TextField(
             controller: commentController,
@@ -204,6 +166,7 @@ class CommentsPageState extends State<CommentsPage> with AutomaticKeepAliveClien
 
             ),
           ),
+
           FlatButton(
               child: Text('Submit'),
               onPressed: () {
@@ -238,41 +201,29 @@ class Comment {
         uid: json['uid'],
         pid: json['pid'],
         context: json['context'],
-        deletedAt: json['deletedAt']
+        deletedAt: json['deletedat']
     );
   }
 }
 
 Future<List<Comment>> fetchComments(http.Client client, int pid) async {
 
-  print ("fetching");
   final response =
   await client.get('https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/comments/$pid');
 
-  print ("response body");
-  print (response.body);
   var body = json.decode(response.body);
-  print (body);
   var list = body['result'] as List;
-  print (list.map<Comment>((json) => Comment.fromJson(json)).toList());
   return list.map<Comment>((json) => Comment.fromJson(json)).toList();
 
 }
 
 Future<Comment> _makeCommentRequest(int uid, int pid, String context) async {
   // set up POST request arguments
-
-
-  print ("HELLOOOOOO");
-  print(context);
   String url = 'https://n8lk77uomc.execute-api.us-east-1.amazonaws.com/dev/comments';
   Map<String, String> headers = {"Content-type": "application/json"};
   String json = '{"uid": $uid, "pid": $pid, "context": "$context"}';
   final response = await post(url, headers: headers, body: json);
   int statusCode = response.statusCode;
-  print ("COMMENT STATUS CODE");
-  print (statusCode);
-  print(json);
   Map<String, dynamic> map = convert.jsonDecode(response.body);
   Comment jsonResponse = Comment.fromJson(map['result']);
 
@@ -280,8 +231,6 @@ Future<Comment> _makeCommentRequest(int uid, int pid, String context) async {
   if (statusCode == 200) {
     Map<String, dynamic> map = convert.jsonDecode(response.body);
     Comment jsonResponse = Comment.fromJson(map['result']);
-    print ("RETURNING JSON RESPONSE");
-    print (jsonResponse.cid);
     return jsonResponse;
   }
 

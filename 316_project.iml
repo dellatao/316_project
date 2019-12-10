@@ -10,6 +10,12 @@
       <excludeFolder url="file://$MODULE_DIR$/client/.dart_tool" />
       <excludeFolder url="file://$MODULE_DIR$/client/.pub" />
       <excludeFolder url="file://$MODULE_DIR$/client/build" />
+      <excludeFolder url="file://$MODULE_DIR$/client/ios/.symlinks/plugins/image_picker/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/client/ios/.symlinks/plugins/image_picker/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/client/ios/.symlinks/plugins/image_picker/build" />
+      <excludeFolder url="file://$MODULE_DIR$/client/ios/.symlinks/plugins/image_picker/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/client/ios/.symlinks/plugins/image_picker/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/client/ios/.symlinks/plugins/image_picker/example/build" />
       <excludeFolder url="file://$MODULE_DIR$/out" />
       <excludeFolder url="file://$MODULE_DIR$/vortex_app/.dart_tool" />
       <excludeFolder url="file://$MODULE_DIR$/vortex_app/.pub" />

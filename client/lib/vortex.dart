@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'postlist.dart';
-import 'user.dart';
+import 'user_api.dart';
 
 class VortexApp extends StatelessWidget {
 
